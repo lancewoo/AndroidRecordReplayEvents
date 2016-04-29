@@ -21,93 +21,93 @@ int out_fd;
 int
 init(char* fname)
 {
-	char buffer[256];
-	int i, fd;
+    char buffer[256];
+    int i, fd;
 
-	out_fd = open(fname, O_WRONLY /*| O_CREAT*/ | O_TRUNC);
-	if(out_fd < 0) {
-		printf("Couldn't open output file\n");
-		return 1;
-	}
+    out_fd = open(fname, O_WRONLY /*| O_CREAT*/ | O_TRUNC);
+    if(out_fd < 0) {
+        printf("Couldn't open output file\n");
+        return 1;
+    }
 
-	for(i = 0; i < NUM_DEVICES; i++) {
-		sprintf(buffer, "%s%s", EV_PREFIX, ev_devices[i]);
-		in_fds[i].events = POLLIN;
-		in_fds[i].fd = open(buffer, O_RDONLY | O_NDELAY);
-		if(in_fds[i].fd < 0) {
-			printf("Couldn't open input device %s\n", ev_devices[i]);
-			continue;
-		}
+    for(i = 0; i < NUM_DEVICES; i++) {
+        sprintf(buffer, "%s%s", EV_PREFIX, ev_devices[i]);
+        in_fds[i].events = POLLIN;
+        in_fds[i].fd = open(buffer, O_RDONLY | O_NDELAY);
+        if(in_fds[i].fd < 0) {
+            printf("Couldn't open input device %s\n", ev_devices[i]);
+            continue;
+        }
 
-		#if 0
-		sprintf(buffer, "%s%s", OUT_PREFIX, ev_devices[i]);
-		out_fds[i] = open(buffer, O_WRONLY | O_CREAT);
-		if(out_fds[i] < 0) {
-			printf("Couldn't open output file %s\n", ev_devices[i]);
-			return 2;
-		}
-		#endif
-	}
-	return 0;
+        #if 0
+        sprintf(buffer, "%s%s", OUT_PREFIX, ev_devices[i]);
+        out_fds[i] = open(buffer, O_WRONLY | O_CREAT);
+        if(out_fds[i] < 0) {
+            printf("Couldn't open output file %s\n", ev_devices[i]);
+            return 2;
+        }
+        #endif
+    }
+    return 0;
 }
 
 int
 record()
 {
-	int i, numread;
-	struct input_event event;
+    int i, numread;
+    struct input_event event;
 
-	while(1) {
-		if(poll(in_fds, NUM_DEVICES, -1) < 0) {
-			printf("Poll error\n");
-			return 1;
-		}
+    while(1) {
+        if(poll(in_fds, NUM_DEVICES, -1) < 0) {
+            printf("Poll error\n");
+            return 1;
+        }
 
-		for(i = 0; i < NUM_DEVICES; i++) {
-			if(in_fds[i].revents & POLLIN) {
-				/* Data available */
-				numread = read(in_fds[i].fd, &event, sizeof(event));
-				if(numread != sizeof(event)) {
-					printf("Read error\n");
-					return 2;
-				}
-				if(write(out_fd, &i, sizeof(i)) != sizeof(i)) {
-					printf("Write error\n");
-					return 3;
-				}
-				if(write(out_fd, &event, sizeof(event)) != sizeof(event)) {
-					printf("Write error\n");
-					return 4;
-				}
+        for(i = 0; i < NUM_DEVICES; i++) {
+            if(in_fds[i].revents & POLLIN) {
+                /* Data available */
+                numread = read(in_fds[i].fd, &event, sizeof(event));
+                if(numread != sizeof(event)) {
+                    printf("Read error\n");
+                    return 2;
+                }
+                if(write(out_fd, &i, sizeof(i)) != sizeof(i)) {
+                    printf("Write error\n");
+                    return 3;
+                }
+                if(write(out_fd, &event, sizeof(event)) != sizeof(event)) {
+                    printf("Write error\n");
+                    return 4;
+                }
 
-//				printf("input %d, time %ld.%06ld, type %d, code %d, value %d\n", i,
-//						event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value);
-			}
-		}
-	}
+//              printf("input %d, time %ld.%06ld, type %d, code %d, value %d\n", i,
+//                      event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value);
+            }
+        }
+    }
 }
 
 int main(int argc, char** argv)
 {
-	char* outputFile;
+    char* outputFile;
 
-	if (argc > 2) {
-		printf("Usage: %s [/abs/path/to/recorded_event_file]\n", argv[0]);
-		return -1;
-	}
+    if (argc > 2) {
+        printf("Usage: %s [/abs/path/to/recorded_event_file]\n", argv[0]);
+        return -1;
+    }
 
-	if (argc == 1) {
-		outputFile = OUT_FN;
-	} else if (argc == 2) {
-		outputFile = argv[1];
-	}
+    if (argc == 1) {
+        outputFile = OUT_FN;
+    } else if (argc == 2) {
+        outputFile = argv[1];
+    }
 
-	if (init(outputFile) != 0) {
-		printf("Init failed");
-		return 1;
-	}
+    if (init(outputFile) != 0) {
+        printf("Init failed");
+        return 1;
+    }
 
-	record();
+    record();
 
     return 0;
 }

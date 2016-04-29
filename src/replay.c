@@ -22,109 +22,109 @@ int in_fd;
 int
 init(char* fname)
 {
-	char buf[256];
-	int i;
-	struct stat statinfo;
+    char buf[256];
+    int i;
+    struct stat statinfo;
 
-	for (i = 0; i < NUM_DEVICES; i++) {
-		sprintf(buf, "%s%s", EV_PREFIX, ev_devices[i]);
-		out_fds[i] = open(buf, O_WRONLY | O_NDELAY);
-		if (out_fds[i] < 0) {
-			printf("Couldn't open output device: %s\n", buf);
-			continue;
-		}
-	}
+    for (i = 0; i < NUM_DEVICES; i++) {
+        sprintf(buf, "%s%s", EV_PREFIX, ev_devices[i]);
+        out_fds[i] = open(buf, O_WRONLY | O_NDELAY);
+        if (out_fds[i] < 0) {
+            printf("Couldn't open output device: %s\n", buf);
+            continue;
+        }
+    }
 
-	if(stat(fname, &statinfo) == -1) {
-		printf("Couldn't stat input\n");
-		return 2;
-	}
+    if(stat(fname, &statinfo) == -1) {
+        printf("Couldn't stat input\n");
+        return 2;
+    }
 
-	num_events = statinfo.st_size / (sizeof(struct input_event) + sizeof(int));
+    num_events = statinfo.st_size / (sizeof(struct input_event) + sizeof(int));
 
-	if((in_fd = open(fname, O_RDONLY)) < 0) {
-		printf("Couldn't open input\n");
-		return 3;
-	}
+    if((in_fd = open(fname, O_RDONLY)) < 0) {
+        printf("Couldn't open input\n");
+        return 3;
+    }
 
-	// Hacky ioctl init
-	ioctl (out_fds[3], UI_SET_EVBIT, EV_KEY);
-	ioctl (out_fds[3], UI_SET_EVBIT, EV_REP);
-	ioctl (out_fds[1], UI_SET_EVBIT, EV_ABS);
+    // Hacky ioctl init
+    ioctl (out_fds[3], UI_SET_EVBIT, EV_KEY);
+    ioctl (out_fds[3], UI_SET_EVBIT, EV_REP);
+    ioctl (out_fds[1], UI_SET_EVBIT, EV_ABS);
 
-	return 0;
+    return 0;
 }
 
 int
 replay()
 {
-	struct timeval tdiff;
-	struct input_event event;
-	int i, outputdev;
+    struct timeval tdiff;
+    struct input_event event;
+    int i, outputdev;
 
-	timerclear(&tdiff);
+    timerclear(&tdiff);
 
-	for(i = 0; i < num_events; i++) {
-		struct timeval now, tevent, tsleep;
+    for(i = 0; i < num_events; i++) {
+        struct timeval now, tevent, tsleep;
 
-		if(read(in_fd, &outputdev, sizeof(outputdev)) != sizeof(outputdev)) {
-			printf("Input read error\n");
-			return 1;
-		}
+        if(read(in_fd, &outputdev, sizeof(outputdev)) != sizeof(outputdev)) {
+            printf("Input read error\n");
+            return 1;
+        }
 
-		if(read(in_fd, &event, sizeof(event)) != sizeof(event)) {
-			printf("Input read error\n");
-			return 2;
-		}
+        if(read(in_fd, &event, sizeof(event)) != sizeof(event)) {
+            printf("Input read error\n");
+            return 2;
+        }
 
-		gettimeofday(&now, NULL);
-		if (!timerisset(&tdiff)) {
-			timersub(&now, &event.time, &tdiff);
-		}
+        gettimeofday(&now, NULL);
+        if (!timerisset(&tdiff)) {
+            timersub(&now, &event.time, &tdiff);
+        }
 
-		timeradd(&event.time, &tdiff, &tevent);
-		timersub(&tevent, &now, &tsleep);
-		if (tsleep.tv_sec > 0 || tsleep.tv_usec > 100)
-			select(0, NULL, NULL, NULL, &tsleep);
+        timeradd(&event.time, &tdiff, &tevent);
+        timersub(&tevent, &now, &tsleep);
+        if (tsleep.tv_sec > 0 || tsleep.tv_usec > 100)
+            select(0, NULL, NULL, NULL, &tsleep);
 
-		event.time = tevent;
+        event.time = tevent;
 
-		if(write(out_fds[outputdev], &event, sizeof(event)) != sizeof(event)) {
-			printf("Output write error\n");
-			return 2;
-		}
+        if(write(out_fds[outputdev], &event, sizeof(event)) != sizeof(event)) {
+            printf("Output write error\n");
+            return 2;
+        }
 
 //      printf("input %d, time %ld.%06ld, type %d, code %d, value %d\n", i,
 //              event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value);
-	}
+    }
 
-	return 0;
+    return 0;
 }
 
 int main(int argc, char** argv)
 {
-	char* inputFile;
+    char* inputFile;
 
-	if (argc > 2) {
-		printf("Usage: %s [/abs/path/to/recorded_event_file]\n", argv[0]);
-		return -1;
-	}
+    if (argc > 2) {
+        printf("Usage: %s [/abs/path/to/recorded_event_file]\n", argv[0]);
+        return -1;
+    }
 
-	if (argc == 1) {
-		inputFile = IN_FN;
-	} else if (argc == 2) {
-		inputFile = argv[1];
-	}
+    if (argc == 1) {
+        inputFile = IN_FN;
+    } else if (argc == 2) {
+        inputFile = argv[1];
+    }
 
-	if (init(inputFile) != 0) {
-		printf("init failed\n");
-		return 1;
-	}
+    if (init(inputFile) != 0) {
+        printf("init failed\n");
+        return 1;
+    }
 
-	if (replay() != 0) {
-		printf("replay failed\n");
-		return 2;
-	}
-	return 0;
+    if (replay() != 0) {
+        printf("replay failed\n");
+        return 2;
+    }
+    return 0;
 }
 
