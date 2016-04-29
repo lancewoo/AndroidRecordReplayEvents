@@ -9,7 +9,7 @@ const char *OUT_FN = "/sdcard/events";
 /* const char *OUT_PREFIX = "/sdcard/"; */
 
 /* NB event4 is the compass -- not required for tests. */
-char *ev_devices[] = {"event0", "event1", "event2", "event3" /*, "event4" */};
+char *ev_devices[] = {"event0", "event1", "event2", "event3", "event4", "event5"};
 #define NUM_DEVICES (sizeof(ev_devices) / sizeof(char *))
 
 struct pollfd in_fds[NUM_DEVICES];
@@ -19,12 +19,12 @@ int out_fds[NUM_DEVICES];
 int out_fd;
 
 int
-init()
+init(char* fname)
 {
 	char buffer[256];
 	int i, fd;
 
-	out_fd = open(OUT_FN, O_WRONLY /*| O_CREAT*/ | O_TRUNC);
+	out_fd = open(fname, O_WRONLY /*| O_CREAT*/ | O_TRUNC);
 	if(out_fd < 0) {
 		printf("Couldn't open output file\n");
 		return 1;
@@ -36,7 +36,7 @@ init()
 		in_fds[i].fd = open(buffer, O_RDONLY | O_NDELAY);
 		if(in_fds[i].fd < 0) {
 			printf("Couldn't open input device %s\n", ev_devices[i]);
-			return 2;
+			continue;
 		}
 
 		#if 0
@@ -89,13 +89,25 @@ record()
 
 int main(int argc, char** argv)
 {
-	if (init() != 0) {
+	char* outputFile;
+
+	if (argc > 2) {
+		printf("Usage: %s [/abs/path/to/recorded_event_file]\n", argv[0]);
+		return -1;
+	}
+
+	if (argc == 1) {
+		outputFile = OUT_FN;
+	} else if (argc == 2) {
+		outputFile = argv[1];
+	}
+
+	if (init(outputFile) != 0) {
 		printf("Init failed");
 		return 1;
 	}
 
 	record();
+
     return 0;
 }
-
-

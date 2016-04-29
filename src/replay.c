@@ -12,7 +12,7 @@ const char *EV_PREFIX  = "/dev/input/";
 const char *IN_FN = "/sdcard/events";
 
 /* NB event4 is the compass -- not required for tests. */
-char *ev_devices[] = {"event0", "event1", "event2", "event3" /*, "event4" */};
+char *ev_devices[] = {"event0", "event1", "event2", "event3" , "event4" , "event5"};
 #define NUM_DEVICES (sizeof(ev_devices) / sizeof(char *))
 
 int out_fds[NUM_DEVICES];
@@ -20,29 +20,29 @@ int num_events;
 int in_fd;
 
 int
-init()
+init(char* fname)
 {
 	char buf[256];
 	int i;
 	struct stat statinfo;
 
-	for(i = 0; i < NUM_DEVICES; i++) {
+	for (i = 0; i < NUM_DEVICES; i++) {
 		sprintf(buf, "%s%s", EV_PREFIX, ev_devices[i]);
 		out_fds[i] = open(buf, O_WRONLY | O_NDELAY);
 		if (out_fds[i] < 0) {
-			printf("Couldn't open output device\n");
-			return 1;
+			printf("Couldn't open output device: %s\n", buf);
+			continue;
 		}
 	}
 
-	if(stat(IN_FN, &statinfo) == -1) {
+	if(stat(fname, &statinfo) == -1) {
 		printf("Couldn't stat input\n");
 		return 2;
 	}
 
 	num_events = statinfo.st_size / (sizeof(struct input_event) + sizeof(int));
 
-	if((in_fd = open(IN_FN, O_RDONLY)) < 0) {
+	if((in_fd = open(fname, O_RDONLY)) < 0) {
 		printf("Couldn't open input\n");
 		return 3;
 	}
@@ -63,7 +63,7 @@ replay()
 	int i, outputdev;
 
 	timerclear(&tdiff);
-	
+
 	for(i = 0; i < num_events; i++) {
 		struct timeval now, tevent, tsleep;
 
@@ -94,8 +94,8 @@ replay()
 			return 2;
 		}
 
-//		printf("input %d, time %ld.%06ld, type %d, code %d, value %d\n", outputdev,
-//				event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value);
+//      printf("input %d, time %ld.%06ld, type %d, code %d, value %d\n", i,
+//              event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value);
 	}
 
 	return 0;
@@ -103,12 +103,25 @@ replay()
 
 int main(int argc, char** argv)
 {
-	if(init() != 0) {
+	char* inputFile;
+
+	if (argc > 2) {
+		printf("Usage: %s [/abs/path/to/recorded_event_file]\n", argv[0]);
+		return -1;
+	}
+
+	if (argc == 1) {
+		inputFile = IN_FN;
+	} else if (argc == 2) {
+		inputFile = argv[1];
+	}
+
+	if (init(inputFile) != 0) {
 		printf("init failed\n");
 		return 1;
 	}
 
-	if(replay() != 0) {
+	if (replay() != 0) {
 		printf("replay failed\n");
 		return 2;
 	}
